@@ -36,8 +36,8 @@ target_link_libraries(example PRIVATE high-precision)
 
 # 安装规则
 install(TARGETS high-precision
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION high-precision/lib
+    LIBRARY DESTINATION high-precision/lib
 )
 
 install(FILES high-precision.h
@@ -46,11 +46,17 @@ install(FILES high-precision.h
 
 # 设置输出目录
 set_target_properties(high-precision PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/high-precision/lib"
 )
 
 set_target_properties(example PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# 拷贝包含文件到构建目录
+configure_file(high-precision.h
+    ${CMAKE_BINARY_DIR}/high-precision/include/high-precision.h
+    COPYONLY
 )
 
 # 打印配置信息
