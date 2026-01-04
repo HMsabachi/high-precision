@@ -86,7 +86,6 @@ HighPrecision HighPrecision::operator+(const HighPrecision& other) const // 加�
 
 HighPrecision HighPrecision::operator-(const HighPrecision& other) const // 减法运算符
 {
-	
 	HighPrecision result;
 	result.digits.clear();
 	const size_t maxSize = std::max(digits.size(), other.digits.size());
@@ -122,6 +121,9 @@ HighPrecision HighPrecision::operator*(const HighPrecision& other) const // 乘�
 	for (size_t i = 0; i < digits.size(); ++i) {
 		int carry = 0;
 		for (size_t j = 0; j < other.digits.size() || carry; ++j) {
+			if (i + j >= result.digits.size()) {
+				result.digits.push_back(0);
+			}
 			long long current = result.digits[i + j] + carry;
 			if (j < other.digits.size()) {
 				current += static_cast<long long>(digits[i]) * other.digits[j];
@@ -622,12 +624,13 @@ HighPrecisionFloat HighPrecisionFloat::operator+(const HighPrecisionFloat& other
 	int carry = 0;
 	size_t maxSize = std::max(a.digits.size(), b.digits.size());
 	
+	// 从最低位（索引0）开始相加
 	for (size_t i = 0; i < maxSize || carry; ++i) {
 		int sum = carry;
 		if (i < a.digits.size()) sum += a.digits[i];
 		if (i < b.digits.size()) sum += b.digits[i];
 		
-		result.digits.insert(result.digits.begin(), sum % 10);
+		result.digits.push_back(sum % 10);  // 从低位向高位添加
 		carry = sum / 10;
 	}
 	
@@ -665,6 +668,7 @@ HighPrecisionFloat HighPrecisionFloat::operator-(const HighPrecisionFloat& other
 	result.negative = resultNegative;
 	
 	int borrow = 0;
+	// 从最低位（索引0）开始相减
 	for (size_t i = 0; i < a.digits.size(); ++i) {
 		int diff = borrow + a.digits[i];
 		if (i < b.digits.size()) diff -= b.digits[i];
@@ -675,7 +679,7 @@ HighPrecisionFloat HighPrecisionFloat::operator-(const HighPrecisionFloat& other
 		} else {
 			borrow = 0;
 		}
-		result.digits.insert(result.digits.begin(), diff);
+		result.digits.push_back(diff);  // 从低位向高位添加
 	}
 	
 	result.normalize();
@@ -693,15 +697,17 @@ HighPrecisionFloat HighPrecisionFloat::operator*(const HighPrecisionFloat& other
 	result.digits.resize(this->digits.size() + other.digits.size(), 0);
 	
 	// 乘法运算（从低位到高位）
-	for (int i = this->digits.size() - 1; i >= 0; --i) {
+	for (size_t i = 0; i < this->digits.size(); ++i) {
 		int carry = 0;
-		for (int j = other.digits.size() - 1; j >= 0 || carry; --j) {
-			int pos = i + j + 1;
-			long long current = result.digits[pos] + carry;
-			if (j >= 0) {
+		for (size_t j = 0; j < other.digits.size() || carry; ++j) {
+			if (i + j >= result.digits.size()) {
+				result.digits.push_back(0);
+			}
+			long long current = result.digits[i + j] + carry;
+			if (j < other.digits.size()) {
 				current += static_cast<long long>(this->digits[i]) * other.digits[j];
 			}
-			result.digits[pos] = current % 10;
+			result.digits[i + j] = current % 10;
 			carry = current / 10;
 		}
 	}
@@ -716,7 +722,7 @@ HighPrecisionFloat HighPrecisionFloat::operator/(const HighPrecisionFloat& other
 		throw std::invalid_argument("Division by zero");
 	}
 	
-	const int DIVISION_PRECISION = 100; // 除法精度
+	const int DIVISION_PRECISION = 50; // 除法精度
 	
 	HighPrecisionFloat result;
 	result.digits.clear();
@@ -726,13 +732,16 @@ HighPrecisionFloat HighPrecisionFloat::operator/(const HighPrecisionFloat& other
 	HighPrecisionFloat dividend = this->abs();
 	HighPrecisionFloat divisor = other.abs();
 	
-	// 调整精度：将被除数扩大
-	for (int i = 0; i < DIVISION_PRECISION + other.decimalPoint; ++i) {
+	// 调整小数点位置
+	int adjustedDecimalPoint = this->decimalPoint - other.decimalPoint + DIVISION_PRECISION;
+	
+	// 将被除数扩大以保证精度
+	for (int i = 0; i < DIVISION_PRECISION; ++i) {
 		dividend.digits.insert(dividend.digits.begin(), 0);
 		++dividend.decimalPoint;
 	}
 	
-	result.decimalPoint = DIVISION_PRECISION;
+	result.decimalPoint = adjustedDecimalPoint;
 	
 	// 执行长除法
 	HighPrecisionFloat current;
@@ -740,20 +749,26 @@ HighPrecisionFloat HighPrecisionFloat::operator/(const HighPrecisionFloat& other
 	current.decimalPoint = 0;
 	current.negative = false;
 	
+	// 从高位到低位处理
 	for (int i = dividend.digits.size() - 1; i >= 0; --i) {
+		// 将下一位数字添加到当前余数
 		current.digits.insert(current.digits.begin(), dividend.digits[i]);
 		current.normalize();
 		
+		// 计算当前位的商
 		int quotient = 0;
 		while (current >= divisor) {
-			HighPrecisionFloat temp = current - divisor;
-			current = temp;
+			current = current - divisor;
 			++quotient;
 		}
-		result.digits.push_back(quotient);
+		result.digits.insert(result.digits.begin(), quotient);
 	}
 	
-	std::reverse(result.digits.begin(), result.digits.end());
+	// 确保结果不为空
+	if (result.digits.empty()) {
+		result.digits.push_back(0);
+	}
+	
 	result.normalize();
 	return result;
 }
@@ -1000,5 +1015,12 @@ bool HighPrecisionFloat::isPositive() const {
 bool HighPrecisionFloat::isNegative() const {
 	return negative && !isZero();
 }
+
+
+
+
+
+
+
 
 
